@@ -45,9 +45,9 @@ func TestUpdateFlow_DownloadExtractBackupCopy(t *testing.T) {
 		ServerDir:   tempDir,
 	}
 
-	updated, err := UpdateServerIfNew(current, latest, cfg)
+	dummySymlink := func(target, link string) error { return nil }
+	updated, err := UpdateServerIfNew(current, latest, cfg, dummySymlink)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
 	}
 	if !updated {
 		t.Errorf("expected update to occur, but it did not")
@@ -110,11 +110,70 @@ func TestUpdateFlow_NoUpdateNeeded(t *testing.T) {
 		ServerDir:   tempDir,
 	}
 
-	updated, err := UpdateServerIfNew(current, latest, cfg)
+	dummySymlink := func(target, link string) error { return nil }
+	updated, err := UpdateServerIfNew(current, latest, cfg, dummySymlink)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if updated {
 		t.Errorf("expected no update, but update occurred")
+	}
+}
+
+func TestUpdateFlow_CopiesWorldsDirectory(t *testing.T) {
+	current := "1.19.0.0"
+	latest := "1.21.93.1"
+
+	tempDir := filepath.Join(os.TempDir(), "mc-server-test-worlds-copy")
+	defer os.RemoveAll(tempDir)
+
+	// Create a dummy worlds directory with a file
+	srcWorlds := filepath.Join(tempDir, "Latest", "worlds")
+	if err := os.MkdirAll(srcWorlds, 0755); err != nil {
+		t.Fatalf("failed to create worlds dir: %v", err)
+	}
+	testFile := filepath.Join(srcWorlds, "level.dat")
+	if err := os.WriteFile(testFile, []byte("testdata"), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	// Mock Minecraft download page and dummy zip
+	dummyZip := createDummyZip(t)
+	var ts *httptest.Server
+	mockHTML := `<a href="` + "REPLACE_TS_URL" + `/bedrockdedicatedserver/bin-win/bedrock-server-1.21.93.1.zip" class="MC_Button MC_Button_Hero_Outline MC_Glyph_Download_A MC_Style_Core_Green_5" aria-label="serverBedrockWindows" id="MC_Download_Server_1"><span>Download</span></a>`
+	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/bedrockdedicatedserver/bin-win/" {
+			w.WriteHeader(200)
+			w.Write([]byte(strings.ReplaceAll(mockHTML, "REPLACE_TS_URL", ts.URL)))
+			return
+		}
+		if r.URL.Path == "/bedrockdedicatedserver/bin-win/bedrock-server-1.21.93.1.zip" {
+			w.Header().Set("Content-Type", "application/zip")
+			w.Write(dummyZip)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer ts.Close()
+
+	cfg := config.Config{
+		DownloadURL: ts.URL + "/bedrockdedicatedserver/bin-win/",
+		ServerDir:   tempDir,
+	}
+
+	dummySymlink := func(target, link string) error { return nil }
+	updated, err := UpdateServerIfNew(current, latest, cfg, dummySymlink)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !updated {
+		t.Errorf("expected update to occur, but it did not")
+	}
+
+	// Check that the worlds directory was copied into the new server directory
+	extractDir := filepath.Join(tempDir, "bedrock-server-"+latest)
+	copiedWorlds := filepath.Join(extractDir, "worlds")
+	if _, err := os.Stat(filepath.Join(copiedWorlds, "level.dat")); err != nil {
+		t.Errorf("expected worlds directory and file to be copied, but got error: %v", err)
 	}
 }

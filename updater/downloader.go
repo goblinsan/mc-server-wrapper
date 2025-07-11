@@ -29,7 +29,18 @@ func DownloadFile(filepath string, url string) error {
 }
 
 // UpdateServerIfNew checks for a new version and performs update steps if needed, always using config.
-func UpdateServerIfNew(current, _ string, cfg config.Config) (bool, error) {
+// SymlinkUpdater is a function type for updating the 'Latest' symlink.
+type SymlinkUpdater func(target, link string) error
+
+// DefaultSymlinkUpdater uses os.Symlink
+func DefaultSymlinkUpdater(target, link string) error {
+	os.Remove(link) // Remove old symlink if exists
+	return os.Symlink(target, link)
+}
+
+// UpdateServerIfNew checks for a new version and performs update steps if needed, always using config.
+// Accepts a symlinkUpdater for testability.
+func UpdateServerIfNew(current, _ string, cfg config.Config, symlinkUpdater SymlinkUpdater) (bool, error) {
 	// Ensure server directory exists
 	if err := os.MkdirAll(cfg.ServerDir, os.ModePerm); err != nil {
 		return false, fmt.Errorf("failed to create server dir: %w", err)
@@ -64,14 +75,51 @@ func UpdateServerIfNew(current, _ string, cfg config.Config) (bool, error) {
 		return false, fmt.Errorf("failed to extract: %w", err)
 	}
 
-	// Update the 'Latest' symlink to point to the new version
-	latestLink := filepath.Join(cfg.ServerDir, "Latest")
-	os.Remove(latestLink) // Remove old symlink if exists
-	if err := os.Symlink(extractDir, latestLink); err != nil {
-		return false, fmt.Errorf("failed to update symlink: %w", err)
+	// Copy the 'worlds' directory from the current server to the new extracted server
+	srcWorlds := filepath.Join(cfg.ServerDir, "Latest", "worlds")
+	dstWorlds := filepath.Join(extractDir, "worlds")
+	if _, err := os.Stat(srcWorlds); err == nil {
+		if err := CopyDir(srcWorlds, dstWorlds); err != nil {
+			return false, fmt.Errorf("failed to copy worlds: %w", err)
+		}
 	}
 
+	// Update the 'Latest' symlink to point to the new version
+	latestLink := filepath.Join(cfg.ServerDir, "Latest")
+	if err := symlinkUpdater(extractDir, latestLink); err != nil {
+		return false, fmt.Errorf("failed to update symlink: %w", err)
+	}
 	return true, nil
+}
+
+// CopyDir recursively copies a directory tree, attempting to preserve permissions.
+func CopyDir(src string, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		targetPath := filepath.Join(dst, relPath)
+		if info.IsDir() {
+			return os.MkdirAll(targetPath, info.Mode())
+		}
+		// Copy file
+		srcFile, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer srcFile.Close()
+		dstFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode())
+		if err != nil {
+			return err
+		}
+		defer dstFile.Close()
+		_, err = io.Copy(dstFile, srcFile)
+		return err
+	})
 }
 
 // ExtractZip extracts a zip file to the target directory
