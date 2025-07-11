@@ -7,7 +7,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/goblinsan/mc-server-wrapper/config"
@@ -21,17 +20,19 @@ func TestUpdateFlow_DownloadExtractBackupCopy(t *testing.T) {
 	tempDir := filepath.Join(os.TempDir(), "mc-server-test")
 	defer os.RemoveAll(tempDir)
 
-	// Mock Minecraft download page and dummy zip
+	// Mock changelog and dummy zip
 	dummyZip := createDummyZip(t)
 	var ts *httptest.Server
-	mockHTML := `<a href="` + "REPLACE_TS_URL" + `/bedrockdedicatedserver/bin-win/bedrock-server-1.21.93.1.zip" class="MC_Button MC_Button_Hero_Outline MC_Glyph_Download_A MC_Style_Core_Green_5" aria-label="serverBedrockWindows" data-aem-contentname="primary-cta" id="MC_Download_Server_1" target="_blank" data-bi-id="MC_Download_Server_1" data-bi-ct="button" data-bi-cn="primary-cta" data-bi-ecn="primary-cta" disabled="disabled" data-bi-bhvr="DOWNLOAD"><span>Download</span></a>`
+	mockChangelog := `<li class="article-list-item ">
+		<a href="/hc/en-us/articles/37810171798029-Minecraft-1-21-93-Bedrock" class="article-list-link" data-bi-id="n4a3" data-bi-name="minecraft - 1.21.93 (bedrock)" data-bi-type="text">Minecraft - 1.21.93 (Bedrock)</a>
+	</li>`
 	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/bedrockdedicatedserver/bin-win/" {
+		if r.URL.Path == "/changelog" {
 			w.WriteHeader(200)
-			w.Write([]byte(strings.ReplaceAll(mockHTML, "REPLACE_TS_URL", ts.URL)))
+			w.Write([]byte(mockChangelog))
 			return
 		}
-		if r.URL.Path == "/bedrockdedicatedserver/bin-win/bedrock-server-1.21.93.1.zip" {
+		if r.URL.Path == "/bedrockdedicatedserver/bin-win/bedrock-server-1.21.93.zip" {
 			w.Header().Set("Content-Type", "application/zip")
 			w.Write(dummyZip)
 			return
@@ -41,8 +42,9 @@ func TestUpdateFlow_DownloadExtractBackupCopy(t *testing.T) {
 	defer ts.Close()
 
 	cfg := config.Config{
-		DownloadURL: ts.URL + "/bedrockdedicatedserver/bin-win/",
-		ServerDir:   tempDir,
+		ChangelogURL: ts.URL + "/changelog",
+		DownloadURL:  ts.URL + "/bedrockdedicatedserver/bin-win/",
+		ServerDir:    tempDir,
 	}
 
 	dummySymlink := func(target, link string) error { return nil }
@@ -84,21 +86,21 @@ func TestUpdateFlow_NoUpdateNeeded(t *testing.T) {
 	tempDir := filepath.Join(os.TempDir(), "mc-server-test-no-update")
 	defer os.RemoveAll(tempDir)
 
-	// Mock Minecraft download page with a zip link for the current version
+	// Mock changelog and dummy zip for no update needed
+	dummyZip := createDummyZip(t)
 	var ts *httptest.Server
-	mockHTMLTemplate := `<a href="{{ZIPURL}}" class="MC_Button MC_Button_Hero_Outline MC_Glyph_Download_A MC_Style_Core_Green_5" aria-label="serverBedrockWindows" id="MC_Download_Server_1"><span>Download</span></a>`
+	mockChangelog := `<li class="article-list-item ">
+		<a href="/hc/en-us/articles/37810171798029-Minecraft-1-20-0-0-Bedrock" class="article-list-link" data-bi-id="n4a3" data-bi-name="minecraft - 1.20.0.0 (bedrock)" data-bi-type="text">Minecraft - 1.20.0.0 (Bedrock)</a>
+	</li>`
 	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/bedrockdedicatedserver/bin-win/" {
-			mockZipUrl := ts.URL + "/bedrockdedicatedserver/bin-win/bedrock-server-1.20.0.0.zip"
-			mockHTML := strings.ReplaceAll(mockHTMLTemplate, "{{ZIPURL}}", mockZipUrl)
+		if r.URL.Path == "/changelog" {
 			w.WriteHeader(200)
-			w.Write([]byte(mockHTML))
+			w.Write([]byte(mockChangelog))
 			return
 		}
 		if r.URL.Path == "/bedrockdedicatedserver/bin-win/bedrock-server-1.20.0.0.zip" {
 			w.Header().Set("Content-Type", "application/zip")
-			w.WriteHeader(200)
-			w.Write([]byte("PK\x03\x04dummyzipcontent"))
+			w.Write(dummyZip)
 			return
 		}
 		w.WriteHeader(404)
@@ -106,8 +108,9 @@ func TestUpdateFlow_NoUpdateNeeded(t *testing.T) {
 	defer ts.Close()
 
 	cfg := config.Config{
-		DownloadURL: ts.URL + "/bedrockdedicatedserver/bin-win/",
-		ServerDir:   tempDir,
+		ChangelogURL: ts.URL + "/changelog",
+		DownloadURL:  ts.URL + "/bedrockdedicatedserver/bin-win/",
+		ServerDir:    tempDir,
 	}
 
 	dummySymlink := func(target, link string) error { return nil }
@@ -122,7 +125,6 @@ func TestUpdateFlow_NoUpdateNeeded(t *testing.T) {
 
 func TestUpdateFlow_CopiesWorldsDirectory(t *testing.T) {
 	current := "1.19.0.0"
-	latest := "1.21.93.1"
 
 	tempDir := filepath.Join(os.TempDir(), "mc-server-test-worlds-copy")
 	defer os.RemoveAll(tempDir)
@@ -137,17 +139,19 @@ func TestUpdateFlow_CopiesWorldsDirectory(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	// Mock Minecraft download page and dummy zip
+	// Mock changelog and dummy zip for the new version logic
 	dummyZip := createDummyZip(t)
 	var ts *httptest.Server
-	mockHTML := `<a href="` + "REPLACE_TS_URL" + `/bedrockdedicatedserver/bin-win/bedrock-server-1.21.93.1.zip" class="MC_Button MC_Button_Hero_Outline MC_Glyph_Download_A MC_Style_Core_Green_5" aria-label="serverBedrockWindows" id="MC_Download_Server_1"><span>Download</span></a>`
+	mockChangelog := `<li class="article-list-item ">
+		<a href="/hc/en-us/articles/37810171798029-Minecraft-1-21-93-Bedrock" class="article-list-link" data-bi-id="n4a3" data-bi-name="minecraft - 1.21.93 (bedrock)" data-bi-type="text">Minecraft - 1.21.93 (Bedrock)</a>
+	</li>`
 	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/bedrockdedicatedserver/bin-win/" {
+		if r.URL.Path == "/changelog" {
 			w.WriteHeader(200)
-			w.Write([]byte(strings.ReplaceAll(mockHTML, "REPLACE_TS_URL", ts.URL)))
+			w.Write([]byte(mockChangelog))
 			return
 		}
-		if r.URL.Path == "/bedrockdedicatedserver/bin-win/bedrock-server-1.21.93.1.zip" {
+		if r.URL.Path == "/bedrockdedicatedserver/bin-win/bedrock-server-1.21.93.zip" {
 			w.Header().Set("Content-Type", "application/zip")
 			w.Write(dummyZip)
 			return
@@ -157,12 +161,13 @@ func TestUpdateFlow_CopiesWorldsDirectory(t *testing.T) {
 	defer ts.Close()
 
 	cfg := config.Config{
-		DownloadURL: ts.URL + "/bedrockdedicatedserver/bin-win/",
-		ServerDir:   tempDir,
+		ChangelogURL: ts.URL + "/changelog",
+		DownloadURL:  ts.URL + "/bedrockdedicatedserver/bin-win/",
+		ServerDir:    tempDir,
 	}
 
 	dummySymlink := func(target, link string) error { return nil }
-	updated, err := UpdateServerIfNew(current, latest, cfg, dummySymlink)
+	updated, err := UpdateServerIfNew(current, "", cfg, dummySymlink)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -171,7 +176,7 @@ func TestUpdateFlow_CopiesWorldsDirectory(t *testing.T) {
 	}
 
 	// Check that the worlds directory was copied into the new server directory
-	extractDir := filepath.Join(tempDir, "bedrock-server-"+latest)
+	extractDir := filepath.Join(tempDir, "bedrock-server-1.21.93")
 	copiedWorlds := filepath.Join(extractDir, "worlds")
 	if _, err := os.Stat(filepath.Join(copiedWorlds, "level.dat")); err != nil {
 		t.Errorf("expected worlds directory and file to be copied, but got error: %v", err)

@@ -47,7 +47,7 @@ func UpdateServerIfNew(current, _ string, cfg config.Config, symlinkUpdater Syml
 	}
 
 	// Get latest version and zip URL
-	version, zipUrl, err := GetLatestBedrockVersion(cfg.DownloadURL)
+	version, zipUrl, err := GetLatestBedrockVersion(cfg.ChangelogURL, cfg.DownloadURL)
 	if err != nil {
 		return false, err
 	}

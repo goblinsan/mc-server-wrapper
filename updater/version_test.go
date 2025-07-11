@@ -8,30 +8,25 @@ import (
 )
 
 func TestGetLatestBedrockVersion(t *testing.T) {
-	// Mock HTML from the current Minecraft Bedrock Server download page
-	mockHTML := `
-	<a href="https://www.minecraft.net/bedrockdedicatedserver/bin-win/bedrock-server-1.21.93.1.zip" class="MC_Button MC_Button_Hero_Outline MC_Glyph_Download_A MC_Style_Core_Green_5" aria-label="serverBedrockWindows" data-aem-contentname="primary-cta" id="MC_Download_Server_1" target="_blank" data-bi-id="MC_Download_Server_1" data-bi-ct="button" data-bi-cn="primary-cta" data-bi-ecn="primary-cta" disabled="disabled" data-bi-bhvr="DOWNLOAD">
-	<span>Download</span>
-	</a>
-	<a href="https://www.minecraft.net/bedrockdedicatedserver/bin-linux/bedrock-server-1.21.93.1.zip" class="MC_Button MC_Button_Hero_Outline MC_Glyph_Download_A MC_Style_Core_Green_5" aria-label="serverBedrockLinux" data-aem-contentname="primary-cta" id="MC_Download_Server_2" target="_blank" data-bi-id="MC_Download_Server_2" data-bi-ct="button" data-bi-cn="primary-cta" data-bi-ecn="primary-cta" disabled="disabled" data-bi-bhvr="DOWNLOAD">
-	<span>Download</span>
-	</a>
-	`
+	// Mock changelog HTML with a Bedrock version
+	mockChangelog := `<li class="article-list-item ">
+		<a href="/hc/en-us/articles/37810171798029-Minecraft-1-21-93-Bedrock" class="article-list-link" data-bi-id="n4a3" data-bi-name="minecraft - 1.21.93 (bedrock)" data-bi-type="text">Minecraft - 1.21.93 (Bedrock)</a>
+	</li>`
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		w.Write([]byte(mockHTML))
+		w.Write([]byte(mockChangelog))
 	}))
 	defer ts.Close()
 
-	version, zipUrl, err := GetLatestBedrockVersion(ts.URL + "/bedrockdedicatedserver/bin-win/")
+	version, zipUrl, err := GetLatestBedrockVersion(ts.URL, "https://mocked-download-url/")
 	if err != nil {
 		t.Fatalf("Error fetching version: %v", err)
 	}
-	if version != "1.21.93.1" {
-		t.Errorf("Expected version '1.21.93.1', got '%s'", version)
+	if version != "1.21.93" {
+		t.Errorf("Expected version '1.21.93', got '%s'", version)
 	}
-	if !strings.Contains(zipUrl, "bedrock-server-1.21.93.1.zip") {
+	if !strings.Contains(zipUrl, "bedrock-server-1.21.93.zip") {
 		t.Errorf("Expected zipUrl to contain version, got '%s'", zipUrl)
 	}
 }
