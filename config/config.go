@@ -8,8 +8,6 @@ import (
 
 type Config struct {
 	ServerDir       string `json:"server_dir"`
-	BackupDir       string `json:"backup_dir"`
-	WorldDir        string `json:"world_dir"`
 	NetworkShare    string `json:"network_share"`
 	WikiNavURL      string `json:"wiki_nav_url"`
 	LastVersionFile string `json:"last_version_file"`

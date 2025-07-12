@@ -1,7 +1,5 @@
 {
   "server_dir": "C:/Users/YourUser/minecraft-server",
-  "backup_dir": "C:/Users/YourUser/minecraft-server/backups",
-  "world_dir": "C:/Users/YourUser/minecraft-server/Latest/worlds",
   "network_share": "\\\\YourNAS\\MinecraftBackups",
   "wiki_nav_url": "https://minecraft.wiki/",
   "last_version_file": "C:/Users/YourUser/minecraft-server/last_version.txt"
