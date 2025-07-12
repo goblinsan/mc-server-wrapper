@@ -37,11 +37,11 @@ func TestUpdateFlow_DownloadExtractBackupCopy(t *testing.T) {
 			w.Write([]byte(mockVersionPage))
 			return
 		}
-	   if strings.HasPrefix(r.URL.Path, "/bedrockdedicatedserver/bin-win/bedrock-server-") && strings.HasSuffix(r.URL.Path, ".zip") {
-		   w.Header().Set("Content-Type", "application/zip")
-		   w.Write(dummyZip)
-		   return
-	   }
+		if strings.HasPrefix(r.URL.Path, "/bedrockdedicatedserver/bin-win/bedrock-server-") && strings.HasSuffix(r.URL.Path, ".zip") {
+			w.Header().Set("Content-Type", "application/zip")
+			w.Write(dummyZip)
+			return
+		}
 		w.WriteHeader(404)
 	})
 	defer ts.Close()
@@ -107,11 +107,11 @@ func TestUpdateFlow_NoUpdateNeeded(t *testing.T) {
 			w.Write([]byte(mockVersionPage))
 			return
 		}
-	   if strings.HasPrefix(r.URL.Path, "/bedrockdedicatedserver/bin-win/bedrock-server-") && strings.HasSuffix(r.URL.Path, ".zip") {
-		   w.Header().Set("Content-Type", "application/zip")
-		   w.Write(dummyZip)
-		   return
-	   }
+		if strings.HasPrefix(r.URL.Path, "/bedrockdedicatedserver/bin-win/bedrock-server-") && strings.HasSuffix(r.URL.Path, ".zip") {
+			w.Header().Set("Content-Type", "application/zip")
+			w.Write(dummyZip)
+			return
+		}
 		w.WriteHeader(404)
 	})
 	defer ts.Close()
@@ -164,11 +164,11 @@ func TestUpdateFlow_CopiesWorldsDirectory(t *testing.T) {
 			w.Write([]byte(mockVersionPage))
 			return
 		}
-	   if strings.HasPrefix(r.URL.Path, "/bedrockdedicatedserver/bin-win/bedrock-server-") && strings.HasSuffix(r.URL.Path, ".zip") {
-		   w.Header().Set("Content-Type", "application/zip")
-		   w.Write(dummyZip)
-		   return
-	   }
+		if strings.HasPrefix(r.URL.Path, "/bedrockdedicatedserver/bin-win/bedrock-server-") && strings.HasSuffix(r.URL.Path, ".zip") {
+			w.Header().Set("Content-Type", "application/zip")
+			w.Write(dummyZip)
+			return
+		}
 		w.WriteHeader(404)
 	})
 	defer ts.Close()
