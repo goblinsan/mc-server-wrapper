@@ -11,8 +11,7 @@ type Config struct {
 	BackupDir       string `json:"backup_dir"`
 	WorldDir        string `json:"world_dir"`
 	NetworkShare    string `json:"network_share"`
-	ChangelogURL 	string `json:"changelog_url"`
-	DownloadURL     string `json:"download_url"`
+	WikiNavURL      string `json:"wiki_nav_url"`
 	LastVersionFile string `json:"last_version_file"`
 }
 

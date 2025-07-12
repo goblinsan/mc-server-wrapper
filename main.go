@@ -29,7 +29,7 @@ func main() {
 	}
 
 	// Call the update logic, passing the download page URL from config
-	updated, err := updater.UpdateServerIfNew(currentVersion, cfg.DownloadURL, cfg, updater.DefaultSymlinkUpdater)
+	updated, err := updater.UpdateServerIfNew(currentVersion, cfg, updater.DefaultSymlinkUpdater)
 	if err != nil {
 		log.Fatalf("Update failed: %v", err)
 	}

@@ -8,25 +8,40 @@ import (
 )
 
 func TestGetLatestBedrockVersion(t *testing.T) {
-	// Mock changelog HTML with a Bedrock version
-	mockChangelog := `<li class="article-list-item ">
-		<a href="/hc/en-us/articles/37810171798029-Minecraft-1-21-93-Bedrock" class="article-list-link" data-bi-id="n4a3" data-bi-name="minecraft - 1.21.93 (bedrock)" data-bi-type="text">Minecraft - 1.21.93 (Bedrock)</a>
-	</li>`
-
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		w.Write([]byte(mockChangelog))
-	}))
+	// Mock minecraft.wiki nav HTML and version page HTML
+	mockNav := `<li id="n-Latest:-1.21.93" class="mw-list-item"><a href="/w/Bedrock_Edition_1.21.93" title="Bedrock Edition 1.21.93"><span>Latest: 1.21.93</span></a></li>`
+	dummyZip := []byte("PK\x03\x04dummyzipcontent")
+	var ts *httptest.Server
+	ts = httptest.NewServer(nil)
+	mockVersionPage := `<a href="` + ts.URL + `/bedrockdedicatedserver/bin-win/bedrock-server-1.21.93.1.zip">Windows</a>`
+	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			w.WriteHeader(200)
+			w.Write([]byte(mockNav))
+			return
+		}
+		if r.URL.Path == "/w/Bedrock_Edition_1.21.93" {
+			w.WriteHeader(200)
+			w.Write([]byte(mockVersionPage))
+			return
+		}
+		if r.URL.Path == "/bedrockdedicatedserver/bin-win/bedrock-server-1.21.93.1.zip" {
+			w.Header().Set("Content-Type", "application/zip")
+			w.Write(dummyZip)
+			return
+		}
+		w.WriteHeader(404)
+	})
 	defer ts.Close()
 
-	version, zipUrl, err := GetLatestBedrockVersion(ts.URL, "https://mocked-download-url/")
+	version, zipUrl, err := GetLatestBedrockVersion(ts.URL + "/")
 	if err != nil {
 		t.Fatalf("Error fetching version: %v", err)
 	}
 	if version != "1.21.93" {
 		t.Errorf("Expected version '1.21.93', got '%s'", version)
 	}
-	if !strings.Contains(zipUrl, "bedrock-server-1.21.93.zip") {
+	if !strings.Contains(zipUrl, "bedrock-server-1.21.93.1.zip") {
 		t.Errorf("Expected zipUrl to contain version, got '%s'", zipUrl)
 	}
 }

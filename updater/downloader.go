@@ -40,14 +40,14 @@ func DefaultSymlinkUpdater(target, link string) error {
 
 // UpdateServerIfNew checks for a new version and performs update steps if needed, always using config.
 // Accepts a symlinkUpdater for testability.
-func UpdateServerIfNew(current, _ string, cfg config.Config, symlinkUpdater SymlinkUpdater) (bool, error) {
+func UpdateServerIfNew(current string, cfg config.Config, symlinkUpdater SymlinkUpdater) (bool, error) {
 	// Ensure server directory exists
 	if err := os.MkdirAll(cfg.ServerDir, os.ModePerm); err != nil {
 		return false, fmt.Errorf("failed to create server dir: %w", err)
 	}
 
 	// Get latest version and zip URL
-	version, zipUrl, err := GetLatestBedrockVersion(cfg.ChangelogURL, cfg.DownloadURL)
+	version, zipUrl, err := GetLatestBedrockVersion(cfg.WikiNavURL)
 	if err != nil {
 		return false, err
 	}

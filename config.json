@@ -3,7 +3,6 @@
   "backup_dir": "C:/Users/YourUser/minecraft-server/backups",
   "world_dir": "C:/Users/YourUser/minecraft-server/Latest/worlds",
   "network_share": "\\\\YourNAS\\MinecraftBackups",
-  "changelog_url": "https://feedback.minecraft.net/hc/en-us/sections/360001186971-Release-Changelogs",
-  "download_url": "https://www.minecraft.net/en-us/download/server/bedrock",
+  "wiki_nav_url": "https://minecraft.wiki/",
   "last_version_file": "C:/Users/YourUser/minecraft-server/last_version.txt"
 }
