@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/goblinsan/mc-server-wrapper/config"
 )
@@ -34,45 +35,36 @@ func DownloadFile(filepath string, url string) error {
 	return err
 }
 
-// UpdateServerIfNew checks for a new version and performs update steps if needed, always using config.
-// SymlinkUpdater is a function type for updating the 'Latest' symlink.
 type SymlinkUpdater func(target, link string) error
 
-// DefaultSymlinkUpdater uses os.Symlink
 func DefaultSymlinkUpdater(target, link string) error {
 	os.Remove(link) // Remove old symlink if exists
 	return os.Symlink(target, link)
 }
 
-// UpdateServerIfNew checks for a new version and performs update steps if needed, always using config.
-// Accepts a symlinkUpdater for testability.
 func UpdateServerIfNew(current string, cfg config.Config, symlinkUpdater SymlinkUpdater) (bool, error) {
 	// Ensure server directory exists
 	if err := os.MkdirAll(cfg.ServerDir, os.ModePerm); err != nil {
 		return false, fmt.Errorf("failed to create server dir: %w", err)
 	}
 
-	// Get latest version and zip URL
 	version, zipUrl, err := GetLatestBedrockVersion(cfg.WikiNavURL)
 	if err != nil {
 		return false, err
 	}
 
-	// Use the provided 'current' version for comparison
 	if current == version {
-		return false, nil // Already up to date, skip download/extract
+		return false, nil
 	}
 
-	// Download the zip to its versioned name
-	zipName := fmt.Sprintf("bedrock-server-%s.zip", version)
-	zipPath := filepath.Join(cfg.ServerDir, zipName)
+	zipFileName := filepath.Base(zipUrl)
+	zipPath := filepath.Join(cfg.ServerDir, zipFileName)
 	err = DownloadFile(zipPath, zipUrl)
 	if err != nil {
 		return false, fmt.Errorf("failed to download: %w", err)
 	}
 
-	// Extract the zip to a versioned directory
-	extractDir := filepath.Join(cfg.ServerDir, "bedrock-server-"+version)
+	extractDir := filepath.Join(cfg.ServerDir, "bedrock-server-"+ParseBedrockVersion(zipFileName))
 	if err := os.MkdirAll(extractDir, os.ModePerm); err != nil {
 		return false, fmt.Errorf("failed to create extract dir: %w", err)
 	}
@@ -81,9 +73,25 @@ func UpdateServerIfNew(current string, cfg config.Config, symlinkUpdater Symlink
 		return false, fmt.Errorf("failed to extract: %w", err)
 	}
 
-	// Copy the 'worlds' directory from the current server to the new extracted server
-	srcWorlds := filepath.Join(cfg.ServerDir, "Latest", "worlds")
 	dstWorlds := filepath.Join(extractDir, "worlds")
+	srcWorlds := filepath.Join(cfg.ServerDir, "Latest", "worlds")
+	if _, err := os.Stat(srcWorlds); os.IsNotExist(err) {
+		// Fallback: find the most recent bedrock-server-* directory (excluding the new one)
+		entries, _ := os.ReadDir(cfg.ServerDir)
+		var latestDir string
+		for _, entry := range entries {
+			if entry.IsDir() && strings.HasPrefix(entry.Name(), "bedrock-server-") && entry.Name() != "bedrock-server-"+ParseBedrockVersion(zipFileName) {
+				candidate := filepath.Join(cfg.ServerDir, entry.Name(), "worlds")
+				if _, err := os.Stat(candidate); err == nil {
+					latestDir = candidate
+				}
+			}
+		}
+		if latestDir != "" {
+			srcWorlds = latestDir
+		}
+	}
+
 	if _, err := os.Stat(srcWorlds); err == nil {
 		if err := CopyDir(srcWorlds, dstWorlds); err != nil {
 			return false, fmt.Errorf("failed to copy worlds: %w", err)
@@ -98,7 +106,6 @@ func UpdateServerIfNew(current string, cfg config.Config, symlinkUpdater Symlink
 	return true, nil
 }
 
-// CopyDir recursively copies a directory tree, attempting to preserve permissions.
 func CopyDir(src string, dst string) error {
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -112,7 +119,9 @@ func CopyDir(src string, dst string) error {
 		if info.IsDir() {
 			return os.MkdirAll(targetPath, info.Mode())
 		}
-		// Copy file
+		if err := os.MkdirAll(filepath.Dir(targetPath), os.ModePerm); err != nil {
+			return err
+		}
 		srcFile, err := os.Open(path)
 		if err != nil {
 			return err
@@ -128,7 +137,6 @@ func CopyDir(src string, dst string) error {
 	})
 }
 
-// ExtractZip extracts a zip file to the target directory
 func ExtractZip(zipPath, targetDir string) error {
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
