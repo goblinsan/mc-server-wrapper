@@ -11,7 +11,6 @@ import (
 )
 
 
-// GetLatestBedrockVersion fetches the latest Bedrock version and download link from minecraft.wiki
 func GetLatestBedrockVersion(wikiNavUrl string) (version string, zipUrl string, err error) {
 	if wikiNavUrl == "" {
 		wikiNavUrl = "https://minecraft.wiki/"
@@ -65,7 +64,7 @@ func fetchLatestBedrockVersionFromWikiNav(wikiNavUrl string) (string, string, er
 			if bedrockIdx == -1 && len(matchesTest) >= 3 {
 				bedrockIdx = 0
 			} else if bedrockIdx == -1 {
-				return "", "", errors.New("Bedrock Edition section not found in wiki nav")
+				return "", "", errors.New("bedrock edition section not found in wiki nav")
 			}
 		}
 	}
@@ -84,10 +83,7 @@ func fetchLatestBedrockVersionFromWikiNav(wikiNavUrl string) (string, string, er
 	
 	base := wikiNavUrl
 	if strings.HasPrefix(wikiNavUrl, "http://") || strings.HasPrefix(wikiNavUrl, "https://") {
-		u := wikiNavUrl
-		if strings.HasSuffix(u, "/") {
-			u = u[:len(u)-1]
-		}
+		u := strings.TrimSuffix(wikiNavUrl, "/")
 		base = u
 	}
 	
